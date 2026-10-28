@@ -1,0 +1,28 @@
+# Name,   Type, SubType, Offset,   Size,     Flags
+# ★★★ 2026-10-27 改版：为【语音识别模型】腾地方
+#     原来 factory/ota_0/ota_1 各 4MB ✗ 但 app 只有 2.14MB ✗ 浪费 5.4MB
+#     → 各缩到 3MB ✓（仍留 0.86MB 余量 ✓）→ 腾出 3MB
+#     → 新加 model 分区 2MB ✓（esp-sr 的中文模型要放这里 ✓）
+#   ⚠️ 改分区表后【必须 idf.py erase-flash】✗ 否则旧数据会导致启动异常 ✗
+#
+# 布局（16MB flash）：
+#   0x009000  nvs        24KB
+#   0x00f000  otadata     8KB
+#   0x011000  phy_init    4KB
+#   0x020000  html        1MB   （配网页）
+#   0x120000  image       1MB   （图片资源）
+#   0x220000  factory     3MB   （应用）
+#   0x520000  ota_0       3MB   （OTA 槽 A）
+#   0x820000  ota_1       3MB   （OTA 槽 B）
+#   0xb20000  model       2MB   ★ 语音模型
+#   0xd20000  （剩余约 2.9MB 空闲）
+#
+nvs,      data, nvs,     0x9000,   0x6000,
+otadata,  data, ota,     0xf000,   0x2000,
+phy_init, data, phy,     0x11000,  0x1000,
+html,     data, spiffs,  0x20000,  0x100000,
+image,    data, spiffs,  0x120000, 0x100000,
+factory,  app,  factory, 0x220000, 0x300000,
+ota_0,    app,  ota_0,   0x520000, 0x300000,
+ota_1,    app,  ota_1,   0x820000, 0x300000,
+model,    data, spiffs,  0xB20000, 0x200000,

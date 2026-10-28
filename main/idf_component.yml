@@ -1,0 +1,9 @@
+## ESP-IDF Component Manager 依赖清单
+dependencies:
+  idf: ">=5.4.0"
+  ## 图形库（9.x）
+  lvgl/lvgl: "^9.3.0"
+  ## JSON（OneNET 物模型要拼 JSON）
+  espressif/cjson: "^1.7.18"
+  ## MQTT 客户端 —— OneNET 靠它（IDF v6 里已不是内置组件，要走组件管理器）
+  espressif/mqtt: "^1.1.0"

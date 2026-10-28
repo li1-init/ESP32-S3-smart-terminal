@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#bfe9ff">
+<title>智能终端系统 · ESP32-S3</title>
+<style>
+  :root{
+    --ink:#163a5f;
+    --blue:#2f6fed;
+    --coral:#ff6b6b;
+    --yellow:#ffd166;
+    --paper:#fff;
+    --mono:"Cascadia Mono","SF Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{color-scheme:light}
+  body{
+    min-height:100vh;color:var(--ink);
+    font-family:"Microsoft YaHei","Segoe UI",sans-serif;
+    background:linear-gradient(180deg,#bfe9ff 0%,#dff4ff 48%,#fff8e8 100%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .cloud{position:fixed;background:#fff;border-radius:50%;filter:blur(2px);opacity:.75;z-index:0;pointer-events:none}
+  .c1{width:240px;height:70px;left:8%;top:14%}
+  .c2{width:180px;height:54px;right:12%;top:10%}
+  .c3{width:300px;height:80px;right:30%;bottom:6%;opacity:.5}
+  .sun{position:fixed;right:7%;top:8%;width:110px;height:110px;border-radius:50%;background:var(--yellow);
+       box-shadow:0 0 0 18px rgba(255,224,102,.18),0 0 60px rgba(255,224,102,.35);z-index:0}
+  .star{position:fixed;color:var(--yellow);font-size:20px;z-index:0;pointer-events:none;text-shadow:0 2px 0 var(--ink)}
+
+  .app{
+    position:relative;z-index:2;width:100%;max-width:1360px;margin:0 auto;
+    padding:26px 34px 22px;min-height:100vh;display:flex;flex-direction:column;gap:12px;
+  }
+
+  .top{height:84px;flex:0 0 auto;display:flex;justify-content:space-between;align-items:center}
+  .brand{display:flex;align-items:center;gap:14px;min-width:0}
+  .logo{width:50px;height:50px;flex:0 0 auto;border-radius:14px;background:var(--ink);color:#fff;display:grid;place-items:center;
+        font-size:22px;font-weight:900;border:3px solid var(--ink);box-shadow:5px 5px 0 var(--yellow)}
+  .kicker{font-size:9px;letter-spacing:.18em;color:var(--blue);font-weight:700;margin-bottom:3px}
+  h1{font-size:clamp(28px,2.7vw,34px);font-weight:900;letter-spacing:.03em;line-height:1.1;color:var(--ink);
+     text-shadow:2px 2px 0 #fff,4px 4px 0 var(--yellow)}
+  .clock{text-align:right;flex:0 0 auto}
+  .clock .date{font-size:11px;color:var(--blue);font-weight:700;letter-spacing:.06em}
+  .clock .time{font-family:var(--mono);font-size:clamp(30px,2.8vw,38px);font-weight:800;color:var(--ink);
+               line-height:1.05;margin-top:2px;font-variant-numeric:tabular-nums}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .metrics .card{height:314px}
+  .actions .card{height:204px}
+  .card{
+    position:relative;border-radius:18px;padding:16px 19px 13px;display:flex;flex-direction:column;min-height:0;min-width:0;
+    background:#fff;border:3px solid var(--ink);box-shadow:7px 7px 0 var(--ink);
+  }
+  .card::after{content:"";position:absolute;right:0;top:0;width:70px;height:70px;pointer-events:none;
+    background-image:radial-gradient(var(--ink) 1.3px,transparent 1.4px);background-size:8px 8px;opacity:.18}
+  .ph{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative;z-index:1}
+  .ph b{font-size:11px;font-weight:900;color:var(--ink)}
+  .ph .tag{background:var(--yellow);border:2px solid var(--ink);border-radius:6px;padding:2px 8px;font-size:8px;font-weight:900;
+           transform:rotate(-3deg);box-shadow:2px 2px 0 var(--ink);white-space:nowrap}
+
+  .mbody{display:flex;flex-direction:column;flex:1;min-height:0;margin-top:5px;position:relative;z-index:1}
+  .reading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+  .num{font-size:clamp(54px,4.7vw,68px);font-weight:900;line-height:.9;letter-spacing:-.03em;color:var(--coral);
+       font-variant-numeric:tabular-nums;text-shadow:2px 2px 0 #ffe0e0}
+  .num b{font:inherit;color:inherit;letter-spacing:inherit}
+  .num span{font-size:16px;color:var(--ink);margin-left:4px;font-weight:900}
+  .st{background:#e9f5ff;border:2px solid var(--blue);color:var(--blue);border-radius:6px;padding:2px 8px;
+      font-size:9px;font-weight:900;transform:rotate(2deg);margin-bottom:10px;white-space:nowrap}
+  .range{font-size:9.5px;color:#4b6f91;margin-top:4px}
+  .range b{color:var(--ink);font-weight:800}
+  .meter{height:10px;border:2px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden;margin-top:8px}
+  .meter i{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,var(--coral) 0 6px,#ffb3b3 6px 12px);
+           transition:width .7s cubic-bezier(.2,.9,.2,1)}
+  .meterlab{display:flex;justify-content:space-between;font-size:8px;color:#4b6f91;margin-top:3px;font-weight:700}
+  .chart{flex:1;min-height:70px;margin-top:6px;border-radius:8px;
+         background-image:radial-gradient(#d7e9f7 1.2px,transparent 1.3px);background-size:14px 14px}
+  .chart canvas{width:100%;height:100%;display:block}
+  .lightcard .num{color:var(--blue);text-shadow:2px 2px 0 #dbe9ff}
+  .lightcard .st{border-color:#e0a800;color:#a87800;background:#fff7d9}
+  .lightcard .meter i{background:repeating-linear-gradient(45deg,var(--blue) 0 6px,#9cc3ff 6px 12px)}
+
+  .bubble{display:flex;align-items:center;gap:8px;height:40px;margin-top:12px;padding:0 13px;
+          background:#f2faff;border:2px solid var(--ink);border-radius:14px;box-shadow:3px 3px 0 var(--ink)}
+  .bubble span{font-size:9px;font-weight:900;color:var(--blue)}
+  .bubble input{flex:1;min-width:0;background:none;border:0;outline:none;color:var(--ink);font:inherit;font-size:12px}
+  .bubble input::placeholder{color:#6f8fae}
+  .btns{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+  .btn{height:34px;padding:0 16px;border:2px solid var(--ink);border-radius:9px;background:#fff;color:var(--ink);
+       font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;box-shadow:3px 3px 0 var(--ink);
+       transition:transform .12s,background .15s}
+  .btn:hover{background:#f2faff}
+  .btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .btn.pri{background:var(--coral);color:#fff}
+  .tip{margin-top:auto;font-size:8px;color:#4b6f91;line-height:1.6}
+
+  .statusrow{display:flex;align-items:center;gap:11px;margin-top:4px;position:relative;z-index:1}
+  .mascot{width:86px;height:86px;object-fit:contain;display:block;flex:0 0 auto}
+  .speech{position:relative;background:#fff;border:2px solid var(--ink);border-radius:12px;padding:8px 12px;min-width:0;
+          box-shadow:3px 3px 0 var(--ink)}
+  .speech::before{content:"";position:absolute;left:-8px;top:24px;width:12px;height:12px;background:#fff;
+                  border-left:2px solid var(--ink);border-bottom:2px solid var(--ink);transform:rotate(45deg)}
+  .speech b{display:block;font-size:15px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .speech span{display:flex;align-items:center;gap:5px;font-size:8.5px;color:#4b6f91;margin-top:2px}
+  .alarm-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);display:inline-block;flex:0 0 auto}
+  .speech.bad{border-color:#e63946;background:#fff3f3}
+  .speech.bad b{color:#d62828}
+  .speech.bad .alarm-dot{background:var(--coral)}
+  .online{margin-left:auto;font-size:8px;font-weight:900;color:#fff;background:var(--blue);border:2px solid var(--ink);
+          border-radius:6px;padding:3px 7px;transform:rotate(2deg);white-space:nowrap}
+  .online.err{background:var(--coral)}
+  .rows{margin-top:6px;position:relative;z-index:1}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0;border-bottom:1.5px dashed #b9d4ea;
+       font-size:8.5px;color:#4b6f91}
+  .row b{color:var(--ink);font-weight:800;display:flex;align-items:center;gap:6px;min-width:0}
+  .row b span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dot{width:6px;height:6px;border-radius:50%;border:1.5px solid var(--ink);display:inline-block;flex:0 0 auto;background:transparent}
+  .dot.on{background:var(--blue);border-color:var(--ink)}
+  .dot.err{background:var(--coral)}
+
+  .config{padding:0;height:auto}
+  .cfg-summary{display:block;padding:15px 19px 13px;cursor:pointer;list-style:none;user-select:none;position:relative;z-index:1}
+  .cfg-summary::-webkit-details-marker{display:none}
+  .cfg-summary::marker{content:""}
+  .cfg-summary:focus-visible{outline:3px solid var(--blue);outline-offset:-7px}
+  .config[open] .cfg-summary{border-bottom:2px solid var(--ink)}
+  .cfghead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .cfghead .l{font-size:11px;font-weight:900;color:var(--ink)}
+  .cfghead .l span{font-size:8px;color:var(--blue);margin-left:7px;font-weight:700}
+  .cfg-state{font-size:8px;font-weight:900;color:var(--ink);background:var(--yellow);border:2px solid var(--ink);
+             border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .cfg-state::before{content:"展开"}
+  .config[open] .cfg-state::before{content:"收起"}
+  .cfg-state::after{content:" +"}
+  .config[open] .cfg-state::after{content:" −"}
+  .cfg-body{padding:0 19px 13px;position:relative;z-index:1}
+  .fields{display:grid;grid-template-columns:1fr 1fr 1.5fr;gap:15px;margin-top:10px}
+  .field{min-width:0}
+  .field span{display:block;font-size:8px;font-weight:800;color:var(--blue);margin-bottom:4px}
+  .field input{width:100%;height:30px;background:#f7fcff;border:2px solid var(--ink);border-radius:8px;
+               color:var(--ink);padding:0 9px;font-family:var(--mono);font-size:9px;outline:none}
+  .field input:focus{box-shadow:0 0 0 3px rgba(47,111,237,.18)}
+  .cfgfoot{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .cfg-note{margin-left:auto;text-align:right;font-size:7.5px;color:#4b6f91;line-height:1.6}
+  .cfg-note b{color:var(--ink);font-weight:700}
+  .cfgmeta{display:flex;gap:18px;border-top:2px dashed #b9d4ea;padding-top:7px;margin-top:10px;
+            font-size:8px;font-weight:800;color:var(--blue)}
+
+  /* ---------- 设备控制 ---------- */
+  .control-sec{margin-top:12px;position:relative;z-index:2}
+  .ctrlbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+  .ctrl-title{font-size:10px;font-weight:900;color:var(--ink)}
+  .ctrl-title span{font-size:8px;color:var(--blue);margin-left:7px}
+  .mini-switch{display:flex;align-items:center;gap:7px;font-size:8.5px;font-weight:900;color:var(--ink);
+               cursor:pointer;user-select:none;white-space:nowrap}
+  .mini-switch input{display:none}
+  .mini-switch i{width:36px;height:20px;border:2px solid var(--ink);border-radius:999px;background:#fff;
+                 position:relative;transition:background .2s;flex:0 0 auto}
+  .mini-switch i::after{content:"";position:absolute;left:2px;top:2px;width:12px;height:12px;border-radius:50%;
+                        background:var(--ink);transition:transform .2s,background .2s}
+  .mini-switch input:checked + i{background:var(--blue)}
+  .mini-switch input:checked + i::after{transform:translateX(16px);background:#fff}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1.15fr;gap:16px}
+  .ctrl-card{height:168px;padding:13px 15px 11px;box-shadow:5px 5px 0 var(--ink)}
+  .ctrl-value{display:flex;align-items:baseline;gap:4px;margin-top:5px}
+  .ctrl-value b{font-size:44px;font-weight:900;line-height:.9;color:var(--coral);font-variant-numeric:tabular-nums}
+  .ctrl-value span{font-size:13px;font-weight:900;color:var(--ink)}
+  .range{width:100%;margin-top:11px;accent-color:var(--coral);height:22px;cursor:pointer}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px}
+  .switch-row b{font-size:26px;font-weight:900;color:var(--ink);line-height:1}
+  .toggle{position:relative;width:52px;height:28px;flex:0 0 auto;cursor:pointer}
+  .toggle input{display:none}
+  .toggle i{position:absolute;inset:0;border:2px solid var(--ink);border-radius:999px;background:#fff;transition:background .2s}
+  .toggle i::after{content:"";position:absolute;left:2px;top:2px;width:20px;height:20px;border-radius:50%;
+                   background:var(--ink);transition:transform .2s,background .2s}
+  .toggle input:checked + i{background:var(--blue)}
+  .toggle input:checked + i::after{transform:translateX(24px);background:#fff}
+  .rgb-row{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .rgb-pick{width:48px;height:38px;border:2px solid var(--ink);border-radius:9px;padding:2px;background:#fff;cursor:pointer;flex:0 0 auto}
+  .rgb-meta b{display:block;font-family:var(--mono);font-size:12px;color:var(--ink);letter-spacing:.04em}
+  .rgb-meta span{display:block;font-size:7.5px;color:#4b6f91;margin-top:2px}
+  .rgb-swatch{width:34px;height:34px;border:2px solid var(--ink);border-radius:50%;margin-left:auto;flex:0 0 auto;background:var(--coral)}
+  .ctrl-note{margin-top:auto;font-size:8px;color:#4b6f91;line-height:1.5}
+  .ctrl-tip{min-height:13px;font-size:8px;color:var(--blue);font-weight:700;margin-top:6px}
+
+  .foot{margin-top:auto;padding-top:18px}
+  .foot-inner{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+              font-size:8px;color:var(--blue);font-weight:700;letter-spacing:.06em}
+
+  /* ---------- 主题背景 ---------- */
+  body.theme-dusk{background:linear-gradient(180deg,#ffd6a5 0%,#ffb4a2 45%,#ffdff0 100%)}
+  body.theme-dusk .sun{background:#ff9a76;box-shadow:0 0 0 18px rgba(255,154,118,.18),0 0 60px rgba(255,154,118,.35)}
+  body.theme-dusk .cloud{background:#fff1e8}
+  body.theme-night{background:linear-gradient(180deg,#070b1e 0%,#141a3d 50%,#24153d 100%)}
+  body.theme-night h1{color:#fff;text-shadow:2px 2px 0 #0b1030,4px 4px 0 #00a1d6}
+  body.theme-night .clock .time{color:#fff}
+  body.theme-night .clock .date,body.theme-night .kicker{color:#9fc4ff}
+  body.theme-night .cloud{background:#2d3568;opacity:.35}
+  body.theme-night .sun{background:#f3f0ff;box-shadow:0 0 0 18px rgba(255,255,255,.06),0 0 60px rgba(255,255,255,.25)}
+  body.theme-night .star{color:#ffe3a3}
+  body.theme-night .foot-inner{color:#9fc4ff}
+  body.theme-sakura{background:linear-gradient(180deg,#ffe3ee 0%,#ffd1e0 48%,#fff7fa 100%)}
+  body.theme-sakura .sun{background:#ffb3c9;box-shadow:0 0 0 18px rgba(255,179,201,.18),0 0 60px rgba(255,179,201,.35)}
+  body.theme-sakura .cloud{background:#fff3f8}
+
+  /* ---------- 功能列表 ---------- */
+  .head-right{display:flex;align-items:center;gap:18px;flex:0 0 auto}
+  .menu-wrap{position:relative}
+  .menu-btn{
+    height:38px;padding:0 13px;display:flex;align-items:center;gap:7px;
+    border:2px solid var(--ink);border-radius:10px;background:var(--yellow);color:var(--ink);
+    font:inherit;font-size:10.5px;font-weight:900;cursor:pointer;white-space:nowrap;
+    box-shadow:3px 3px 0 var(--ink);transition:transform .12s,background .15s;
+  }
+  .menu-btn:hover{background:#ffe08a}
+  .menu-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .menu-btn svg{display:block;flex:0 0 auto}
+  .feature-panel{
+    display:none;position:absolute;right:0;top:calc(100% + 10px);width:min(330px,calc(100vw - 28px));
+    max-height:calc(100vh - 150px);overflow:auto;background:#fff;border:3px solid var(--ink);border-radius:16px;
+    box-shadow:8px 8px 0 var(--ink);padding:14px;z-index:60;
+  }
+  .feature-panel.open{display:block;animation:menuPop .16s ease}
+  @keyframes menuPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .fp-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+  .fp-head b{font-size:15px;font-weight:900}
+  .fp-close{width:26px;height:26px;border:2px solid var(--ink);border-radius:7px;background:#fff;color:var(--ink);
+            font-size:15px;font-weight:900;line-height:1;cursor:pointer}
+  .fp-label{font-size:8px;font-weight:900;color:var(--blue);letter-spacing:.12em;margin:12px 0 6px}
+  .theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .theme-btn{display:flex;align-items:center;gap:7px;padding:6px;border:2px solid #dbe7f3;border-radius:9px;background:#f7fcff;
+             color:var(--ink);font:inherit;font-size:9px;font-weight:900;cursor:pointer;text-align:left}
+  .theme-btn:hover{border-color:#9db9d4}
+  .theme-btn.active{border-color:var(--ink);box-shadow:2px 2px 0 var(--ink);background:#fff}
+  .sw{width:26px;height:20px;border-radius:6px;border:1.5px solid var(--ink);flex:0 0 auto}
+  .sw-sky{background:linear-gradient(180deg,#bfe9ff,#fff8e8)}
+  .sw-dusk{background:linear-gradient(180deg,#ffd6a5,#ff9fb2)}
+  .sw-night{background:linear-gradient(180deg,#0b1030,#2a1a4a)}
+  .sw-sakura{background:linear-gradient(180deg,#ffe3ee,#ffd1e0)}
+  .menu-action{width:100%;display:flex;justify-content:space-between;align-items:center;height:38px;padding:0 11px;margin-top:4px;
+               border:2px solid var(--ink);border-radius:9px;background:#e9f5ff;color:var(--ink);font:inherit;font-size:10.5px;
+               font-weight:900;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+  .menu-action:hover{background:#dff1ff}
+  .menu-list{list-style:none;display:grid;gap:5px;font-size:9.5px;color:#4b6f91;font-weight:700}
+  .menu-list li{display:flex;gap:6px;align-items:baseline}
+  .menu-list li::before{content:"✦";color:var(--blue)}
+  .menu-foot{font-size:7.5px;color:#6f8fae;margin-top:10px;text-align:center}
+  .cfg-flash{outline:4px solid var(--yellow);outline-offset:5px}
+
+  .err{color:#d62828;font-weight:900;text-decoration:underline;text-underline-offset:2px}
+
+  @media(max-width:980px){
+    .app{padding:22px 26px 18px}
+    .fields{grid-template-columns:1fr 1fr}
+    .field.token{grid-column:1/-1}
+    .cfg-note{margin-left:0;text-align:left}
+    .grid3{grid-template-columns:1fr 1fr}
+    .ctrl-card:last-child{grid-column:1/-1}
+  }
+  @media(max-width:780px){
+    .grid{grid-template-columns:1fr}
+    .metrics .card{height:auto;min-height:300px}
+    .actions .card{height:auto;min-height:196px}
+    .chart{flex:0 0 110px}
+    .sun{opacity:.55;width:80px;height:80px}
+    .c3{display:none}
+  }
+  @media(max-width:600px){
+    .app{padding:16px 14px 14px;gap:14px}
+    .top{height:auto;flex-direction:column;align-items:flex-start;gap:10px}
+    .head-right{width:100%;justify-content:space-between;gap:10px}
+    .menu-btn{height:34px;padding:0 10px;font-size:9.5px}
+    .feature-panel{position:fixed;left:14px;right:14px;top:auto;bottom:14px;width:auto;max-height:72vh;z-index:80}
+    .clock{text-align:left}
+    .clock .time{font-size:30px}
+    h1{font-size:30px}
+    .kicker{font-size:8px;letter-spacing:.12em}
+    .card{padding:14px 14px 12px;box-shadow:5px 5px 0 var(--ink)}
+    .ph .tag{font-size:7px}
+    .num{font-size:58px}
+    .mascot{width:72px;height:72px}
+    .speech b{font-size:13px}
+    .fields{grid-template-columns:1fr}
+    .field.token{grid-column:auto}
+    .cfg-summary{padding:14px}
+    .cfg-body{padding:0 14px 12px}
+    .cfgmeta{flex-wrap:wrap;gap:10px}
+    .cfg-note{text-align:left}
+    .grid3{grid-template-columns:1fr}
+    .ctrl-card:last-child{grid-column:auto}
+    .ctrl-card{height:auto;min-height:150px}
+    .ctrlbar{flex-wrap:wrap}
+    .foot-inner{flex-direction:column;gap:5px}
+    .sun{display:none}
+    .cloud{opacity:.45}
+  }
+</style>
+</head>
+<body class="theme-sky">
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div><div class="sun"></div>
+  <span class="star" style="left:18%;top:22%;">✦</span>
+  <span class="star" style="right:23%;top:28%;font-size:14px;">✦</span>
+  <span class="star" style="left:44%;bottom:10%;font-size:16px;">✦</span>
+
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <div class="logo">A</div>
+        <div>
+          <div class="kicker">aozora device club</div>
+          <h1>智能终端系统</h1>
+        </div>
+      </div>
+      <div class="head-right">
+        <div class="clock">
+          <div class="date" id="clockDate">—</div>
+          <div class="time" id="clockTime">--:--:--</div>
+        </div>
+
+        <div class="menu-wrap">
+          <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="featurePanel">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="8" width="18" height="11" rx="2.5"/>
+              <path d="M8 8 5 3M16 8l3-5"/>
+              <circle cx="9" cy="13.5" r="1" fill="currentColor" stroke="none"/>
+              <circle cx="15" cy="13.5" r="1" fill="currentColor" stroke="none"/>
+              <path d="M9.5 16.5h5"/>
+            </svg>
+            功能列表
+          </button>
+
+          <div class="feature-panel" id="featurePanel">
+            <div class="fp-head"><b>功能列表</b><button class="fp-close" id="menuClose" aria-label="关闭">×</button></div>
+
+            <div class="fp-label">切换背景</div>
+            <div class="theme-grid">
+              <button class="theme-btn active" data-theme="sky"><span class="sw sw-sky"></span>青空</button>
+              <button class="theme-btn" data-theme="dusk"><span class="sw sw-dusk"></span>黄昏</button>
+              <button class="theme-btn" data-theme="night"><span class="sw sw-night"></span>星夜</button>
+              <button class="theme-btn" data-theme="sakura"><span class="sw sw-sakura"></span>樱花</button>
+            </div>
+
+            <div class="fp-label">设置</div>
+            <button class="menu-action" id="openCfg"><span>OneNET 配置</span><span>→</span></button>
+
+            <div class="fp-label">功能列表</div>
+            <ul class="menu-list">
+              <li>实时温度 / 光照</li>
+              <li>设备消息下发</li>
+              <li>报警状态监控</li>
+              <li>OneNET 配置折叠</li>
+              <li>明暗度 / 主灯 / RGB 调色</li>
+              <li>实时刷新开关</li>
+              <li>背景主题切换</li>
+            </ul>
+            <div class="menu-foot">BILIBILI TV EDITION · v1.0</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid metrics">
+      <section class="card">
+        <div class="ph"><span><b>01 / 温度</b> TEMPERATURE</span><span class="tag">实时</span></div>
+        <div class="mbody">
+          <div class="reading">
+            <div class="num"><b id="temp">--</b><span>℃</span></div>
+            <div class="st" id="tState">等待</div>
+          </div>
+          <div class="range">当前 <b id="temp2">--</b> ℃ ・ 区间 <b id="tRange">—</b></div>
+          <div class="meter"><i id="tBar"></i></div>
+          <div class="meterlab"><span>舒适度</span><span id="tPct">0%</span></div>
+          <div class="chart"><canvas id="tCv"></canvas></div>
+        </div>
+      </section>
+
+      <section class="card lightcard">
+        <div class="ph"><span><b>02 / 光照</b> ILLUMINANCE</span><span class="tag">实时</span></div>
+        <div class="mbody">
+          <div class="reading">
+            <div class="num"><b id="light">--</b><span>%</span></div>
+            <div class="st" id="lState">等待</div>
+          </div>
+          <div class="range">当前 <b id="light2">--</b> % ・ 区间 <b id="lRange">—</b></div>
+          <div class="meter"><i id="lBar"></i></div>
+          <div class="meterlab"><span>明亮度</span><span id="lPct">0%</span></div>
+          <div class="chart"><canvas id="lCv"></canvas></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="grid actions">
+      <section class="card">
+        <div class="ph"><span><b>✉ 给设备发送消息</b> MESSAGE</span><span class="tag">下行</span></div>
+        <div class="bubble"><span>TO</span><input id="msgIn" placeholder="想对设备说什么…" maxlength="128" autocomplete="off"></div>
+        <div class="btns">
+          <button class="btn pri" onclick="sendMsg()">发送！</button>
+          <button class="btn" onclick="quickTest()">测试下发 temp</button>
+        </div>
+        <div class="tip" id="sendTip">物模型需存在 string 属性 msg（最多 128 字）；下发后设备屏幕可见。</div>
+      </section>
+
+      <section class="card">
+        <div class="ph"><span><b>03 / 设备状态</b> STATUS</span><span class="tag">LIVE</span></div>
+        <div class="statusrow">
+          <img class="mascot" src="img/bilibili-tv-clean.png" alt="小电视助手">
+          <div class="speech" id="speech">
+            <b id="alarmTxt">等待数据…</b>
+            <span><i class="alarm-dot" id="alarmDot"></i>报警属性 alarm · <span id="alarmCode">ALARM = N/A</span></span>
+          </div>
+          <span class="online" id="onlineBadge">在线</span>
+        </div>
+        <div class="rows">
+          <div class="row"><span>云端连接</span><b><i id="dot" class="dot"></i><span id="state">连接中…</span></b></div>
+          <div class="row"><span>设备名称</span><b id="devTag">esp32led02</b></div>
+          <div class="row"><span>最后更新</span><b id="lastUpd">—</b></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="control-sec">
+      <div class="ctrlbar">
+        <div class="ctrl-title">04 / 设备控制 <span>DEVICE CONTROL</span></div>
+        <label class="mini-switch"><span>实时刷新</span><input type="checkbox" id="autoRefresh" checked><i></i></label>
+      </div>
+      <div class="grid3">
+        <section class="card ctrl-card">
+          <div class="ph"><span><b>明暗度</b> BRIGHTNESS</span><span class="tag">0–100</span></div>
+          <div class="ctrl-value"><b id="brightVal">--</b><span>%</span></div>
+          <input id="brightRange" class="range" type="range" min="0" max="100" step="1" value="0">
+          <div class="ctrl-note">拖动后自动下发 Brightness</div>
+        </section>
+
+        <section class="card ctrl-card">
+          <div class="ph"><span><b>主灯开关</b> LIGHT SWITCH</span><span class="tag">BOOL</span></div>
+          <div class="switch-row">
+            <b id="switchState">等待</b>
+            <label class="toggle"><input type="checkbox" id="lightSwitch"><i></i></label>
+          </div>
+          <div class="ctrl-note">切换后下发；未确认时保留网页状态</div>
+        </section>
+
+        <section class="card ctrl-card">
+          <div class="ph"><span><b>RGB 调色</b> RGB COLOR</span><span class="tag">STRUCT</span></div>
+          <div class="rgb-row">
+            <input id="rgbPick" class="rgb-pick" type="color" value="#ff6b6b">
+            <div class="rgb-meta"><b id="rgbHex">#FF6B6B</b><span>点击色块选择颜色</span></div>
+            <span id="rgbSwatch" class="rgb-swatch"></span>
+          </div>
+          <div class="ctrl-note">应用后下发 Red / Green / Blue</div>
+        </section>
+      </div>
+      <div class="ctrl-tip" id="ctrlTip"></div>
+    </section>
+
+    <details class="card config" id="cfgBox" open>
+      <summary class="cfg-summary">
+        <div class="cfghead">
+          <div class="l">OneNET 配置 <span>PRODUCT / DEVICE / TOKEN</span></div>
+          <span class="cfg-state"></span>
+        </div>
+      </summary>
+      <div class="cfg-body">
+        <div class="fields">
+          <label class="field"><span>产品 ID</span><input id="pid" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span>设备名称</span><input id="dev" autocomplete="off" spellcheck="false"></label>
+          <label class="field token"><span>鉴权 Token</span><input id="tok" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <div class="cfgfoot">
+          <button class="btn pri" onclick="save()">保存并重启</button>
+          <button class="btn" onclick="resetCfg()">恢复默认</button>
+          <button class="btn" onclick="clearHist()">清空曲线</button>
+          <span class="cfg-note">配置保存在本机浏览器 · 留空 = 内置默认值<br>请用 <b>http://</b> 打开 · <b>file://</b> 会被跨域拦截</span>
+        </div>
+        <div class="cfgmeta"><span>SYNC 2s</span><span>TLS 1.2</span><span>REGION CN-NORTH</span></div>
+      </div>
+    </details>
+
+    <footer class="foot">
+      <div class="foot-inner">
+        <span id="tip">正在向 OneNET 请求数据…</span>
+        <span id="time"></span>
+      </div>
+    </footer>
+  </div>
+
+<script>
+window.onerror = function(msg, src, line, col){
+  var t = document.getElementById('tip');
+  if (t){ t.className = 'err';
+    t.textContent = '✗ JS 错误：' + msg + '  (行 ' + line + ':' + col + ')'; }
+  var s = document.getElementById('state');
+  if (s) s.textContent = '脚本出错';
+  return false;
+};
+
+const $ = id => document.getElementById(id);
+const API = '/api/thingmodel/query-device-property';
+const SET_API = '/api/thingmodel/set-device-property';
+const DEFAULT_CFG = {
+  pid: '',
+  dev: '',
+  tok: ''
+};
+const CFG_VER = '3';
+if (localStorage.getItem('cfg_ver') !== CFG_VER) {
+  localStorage.removeItem('onenet_cfg');
+  localStorage.setItem('cfg_ver', CFG_VER);
+}
+
+const WEEK = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+const pad2 = n => String(n).padStart(2, '0');
+function tickClock(){
+  const d = new Date();
+  const date = $('clockDate'), time = $('clockTime');
+  if (date) date.textContent = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日 · ' + WEEK[d.getDay()];
+  if (time) time.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+
+const anim = {};
+function tween(id, target, dec){
+  const d = (dec === undefined ? 1 : dec);
+  const el = $(id);
+  if (!anim[id]) {
+    anim[id] = { cur: target, target: target, dec: d };
+    if (el) el.textContent = target.toFixed(d);
+    return;
+  }
+  const a = anim[id];
+  a.target = target; a.dec = d;
+}
+function rafLoop(){
+  for (const id in anim){
+    const a = anim[id], el = $(id);
+    if (!el) continue;
+    const d = a.target - a.cur;
+    if (Math.abs(d) > 0.04){ a.cur += d * 0.12; el.textContent = a.cur.toFixed(a.dec); }
+    else if (a.cur !== a.target){ a.cur = a.target; el.textContent = a.target.toFixed(a.dec); }
+  }
+  requestAnimationFrame(rafLoop);
+}
+requestAnimationFrame(rafLoop);
+
+function loadCfg(){
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem('onenet_cfg') || '{}'); } catch(e){}
+  const c = Object.assign({}, DEFAULT_CFG);
+  ['pid','dev','tok'].forEach(k => { if (s[k] && String(s[k]).trim()) c[k] = String(s[k]).trim(); });
+  return c;
+}
+let cfg = loadCfg();
+const MAXP = 120;
+const hist = { temp: [], light: [] };
+
+/* 用户刚下发的控制值：在设备上报更新的时间戳之前，轮询不要覆盖它 */
+const controlStamp = {};
+const markControl = id => { controlStamp[id] = Date.now(); };
+function freshControl(id, ts){
+  const stamp = controlStamp[id] || 0;
+  if (!stamp) return true;
+  const t = Number(ts) || 0;
+  if (t > stamp){ delete controlStamp[id]; return true; }
+  return false;
+}
+
+function setStatus(t, cls){
+  const st = $('state'); if (st) st.textContent = t;
+  const dot = $('dot'); if (dot) dot.className = 'dot' + (cls ? ' ' + cls : '');
+  const badge = $('onlineBadge');
+  if (badge){
+    badge.textContent = cls === 'on' ? '在线' : (cls === 'err' ? '异常' : '连接中');
+    badge.className = 'online' + (cls === 'err' ? ' err' : '');
+  }
+}
+function save(){
+  cfg = { pid: $('pid').value.trim(), dev: $('dev').value.trim(), tok: $('tok').value.trim() };
+  localStorage.setItem('onenet_cfg', JSON.stringify(cfg));
+  location.reload();
+}
+function resetCfg(){ localStorage.removeItem('onenet_cfg'); location.reload(); }
+function clearHist(){ hist.temp.length = 0; hist.light.length = 0; drawAll(); }
+
+const hhmmss = t => {
+  const d = new Date(t);
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+};
+
+const clamp255 = n => Math.max(0, Math.min(255, parseInt(n, 10) || 0));
+const rgbToHex = (r, g, b) => '#' + [r, g, b].map(n => clamp255(n).toString(16).padStart(2, '0')).join('');
+const hexToRgb = hex => {
+  const n = parseInt(String(hex).replace('#', ''), 16) || 0;
+  return { Red: (n >> 16) & 255, Green: (n >> 8) & 255, Blue: n & 255 };
+};
+
+function drawChart(cv, data, color, dotColor, fillColor){
+  if (!cv) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = Math.max(1, Math.round(cv.clientWidth * dpr));
+  const H = Math.max(1, Math.round(cv.clientHeight * dpr));
+  if (cv.width !== W || cv.height !== H){ cv.width = W; cv.height = H; }
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, W, H);
+
+  const pad = 6 * dpr;
+  const pw = W - pad * 2, ph = H - pad * 2;
+  let lo, hi;
+  const vals = data.map(d => d.v);
+  if (vals.length){
+    lo = Math.min(...vals); hi = Math.max(...vals);
+    const span = Math.max(hi - lo, 0.8);
+    lo -= span * 0.25; hi += span * 0.25;
+  } else { lo = 0; hi = 1; }
+
+  if (data.length < 2){
+    g.font = (9*dpr) + 'px "Microsoft YaHei", sans-serif';
+    g.fillStyle = '#8fb2d0';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('数据收集中…', W/2, H/2);
+    return;
+  }
+
+  const x = i => pad + pw * i / (data.length - 1);
+  const y = v => pad + ph - (v - lo) / (hi - lo) * ph;
+  const pts = data.map((d, i) => ({ x: x(i), y: y(d.v) }));
+
+  const trace = () => {
+    g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++){
+      const xc = (pts[i-1].x + pts[i].x) / 2;
+      g.quadraticCurveTo(pts[i-1].x, pts[i-1].y, xc, (pts[i-1].y + pts[i].y) / 2);
+    }
+    g.lineTo(pts[pts.length-1].x, pts[pts.length-1].y);
+  };
+
+  trace();
+  g.lineTo(pts[pts.length-1].x, H); g.lineTo(pts[0].x, H); g.closePath();
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, fillColor); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fill();
+
+  trace();
+  g.strokeStyle = color; g.lineWidth = 2.2 * dpr; g.lineCap = 'round'; g.stroke();
+
+  g.fillStyle = dotColor;
+  for (let i = 0; i < pts.length; i += 6){
+    g.beginPath(); g.arc(pts[i].x, pts[i].y, 2*dpr, 0, Math.PI*2); g.fill();
+  }
+  const last = pts[pts.length-1];
+  g.beginPath(); g.arc(last.x, last.y, 3.4*dpr, 0, Math.PI*2); g.fill();
+  g.strokeStyle = '#fff'; g.lineWidth = 1.5*dpr; g.stroke();
+}
+
+function drawAll(){
+  drawChart($('tCv'), hist.temp, '#ff6b6b', '#2f6fed', 'rgba(255,107,107,.16)');
+  drawChart($('lCv'), hist.light, '#2f6fed', '#ff6b6b', 'rgba(47,111,237,.14)');
+  const range = (a, dec) => a.length
+    ? (Math.min(...a.map(d => d.v)).toFixed(dec) + ' – ' + Math.max(...a.map(d => d.v)).toFixed(dec))
+    : '—';
+  if ($('tRange')) $('tRange').textContent = hist.temp.length ? range(hist.temp, 1) + ' ℃' : '—';
+  if ($('lRange')) $('lRange').textContent = hist.light.length ? range(hist.light, 0) + ' %' : '—';
+}
+
+async function fetchData(){
+  try{
+    const url = API + '?product_id=' + encodeURIComponent(cfg.pid)
+                    + '&device_name=' + encodeURIComponent(cfg.dev);
+    const r = await fetch(url, { headers: { 'Authorization': cfg.tok }, cache: 'no-store' });
+    const j = await r.json();
+    if (j.code !== 0){
+      setStatus('云端返回错误', 'err');
+      if ($('tip')){ $('tip').className = 'err';
+        $('tip').textContent = '服务器说：' + (j.msg || JSON.stringify(j)); }
+      return;
+    }
+    const now = Date.now();
+    let got = 0, gotAlarm = false;
+    (j.data || []).forEach(it => {
+      const id = it.identifier;
+      if (id === 'alarm'){
+        gotAlarm = true;
+        const bad = (it.value === true || String(it.value).trim() === 'true');
+        const sp = $('speech');
+        if (sp) sp.className = 'speech' + (bad ? ' bad' : '');
+        const at = $('alarmTxt'); if (at) at.textContent = bad ? '报警中！' : '一切正常';
+        const ac = $('alarmCode'); if (ac) ac.textContent = 'ALARM = ' + (bad ? 'TRUE' : 'FALSE');
+        got++;
+        return;
+      }
+      if (id === 'Brightness'){
+        if (freshControl('Brightness', it.time)){
+          const n = parseInt(it.value, 10);
+          if (!isNaN(n)){
+            if ($('brightVal')) $('brightVal').textContent = n;
+            if ($('brightRange')) $('brightRange').value = Math.max(0, Math.min(100, n));
+          }
+        }
+        got++;
+        return;
+      }
+      if (id === 'LightSwitch'){
+        if (freshControl('LightSwitch', it.time)){
+          const on = (it.value === true || String(it.value).trim() === 'true');
+          if ($('lightSwitch')) $('lightSwitch').checked = on;
+          if ($('switchState')) $('switchState').textContent = on ? '已开启' : '已关闭';
+        }
+        got++;
+        return;
+      }
+      if (id === 'RGBColor'){
+        if (freshControl('RGBColor', it.time)){
+          let rgb = { Red: 0, Green: 0, Blue: 0 };
+          try {
+            const parsed = (typeof it.value === 'string') ? JSON.parse(it.value) : it.value;
+            if (parsed && typeof parsed === 'object') rgb = parsed;
+          } catch(e){}
+          const hex = rgbToHex(rgb.Red, rgb.Green, rgb.Blue);
+          if ($('rgbPick')) $('rgbPick').value = hex;
+          if ($('rgbSwatch')) $('rgbSwatch').style.background = hex;
+          if ($('rgbHex')) $('rgbHex').textContent = hex.toUpperCase();
+        }
+        got++;
+        return;
+      }
+
+      const v = parseFloat(it.value);
+      if (isNaN(v)) return;
+      if (id === 'temp'){
+        tween('temp', v, 1); tween('temp2', v, 1);
+        const tS = $('tState'); if (tS) tS.textContent = v > 32 ? '偏热' : (v < 10 ? '偏冷' : '舒适');
+        if ($('tBar')) $('tBar').style.width = Math.max(0, Math.min(100, v / 40 * 100)) + '%';
+        if ($('tPct')) $('tPct').textContent = Math.round(Math.max(0, Math.min(100, v / 40 * 100))) + '%';
+        hist.temp.push({ t: now, v }); if (hist.temp.length > MAXP) hist.temp.shift();
+        got++;
+      } else if (id === 'light'){
+        tween('light', v, 0); tween('light2', v, 0);
+        const lS = $('lState'); if (lS) lS.textContent = v > 70 ? '晴朗' : (v > 25 ? '舒适' : '偏暗');
+        if ($('lBar')) $('lBar').style.width = Math.max(0, Math.min(100, v)) + '%';
+        if ($('lPct')) $('lPct').textContent = Math.round(Math.max(0, Math.min(100, v))) + '%';
+        hist.light.push({ t: now, v }); if (hist.light.length > MAXP) hist.light.shift();
+        got++;
+      }
+    });
+    if (gotAlarm === false){
+      const sp = $('speech'); if (sp) sp.className = 'speech';
+      const at = $('alarmTxt'); if (at) at.textContent = '未上报';
+      const ac = $('alarmCode'); if (ac) ac.textContent = 'ALARM = N/A';
+    }
+    if (got){
+      if ($('lastUpd')) $('lastUpd').textContent = hhmmss(now);
+      if ($('time')) $('time').textContent = '最后更新 ' + hhmmss(now);
+      setStatus('在线 · 数据正常', 'on');
+      if ($('tip')){ $('tip').className = '';
+        $('tip').textContent = 'AOZORA SYNC · 每 2 秒刷新'; }
+    } else {
+      setStatus('在线 · 无数据', 'err');
+      if ($('tip')){ $('tip').className = 'err';
+        $('tip').textContent = '设备在线，但没读到 temp / light'; }
+    }
+    drawAll();
+  }catch(e){
+    setStatus('连接失败', 'err');
+    if ($('lastUpd')) $('lastUpd').textContent = '—';
+    if ($('tip')){ $('tip').className = 'err';
+      $('tip').textContent = '错误：' + e.message + ' —— 请用 http:// 打开页面'; }
+  }
+}
+
+async function setProp(params, tipId, label, done){
+  const isCtrl = tipId === 'ctrlTip';
+  const tip = $(tipId || 'sendTip');
+  const base = isCtrl ? 'ctrl-tip' : 'tip';
+  try{
+    const r = await fetch(SET_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': cfg.tok },
+      body: JSON.stringify({ product_id: cfg.pid, device_name: cfg.dev, params })
+    });
+    const j = await r.json();
+    if (j.code === 0){
+      if (tip){ tip.className = base;
+        tip.textContent = '✓ 已下发 ' + (label ? label + '：' : '') + JSON.stringify(params) +
+          (isCtrl ? '（等待设备上报确认）' : ''); }
+      if (done) done(true);
+    } else {
+      if (tip){ tip.className = base + ' err';
+        tip.textContent = '✗ ' + (isCtrl ? '设备未响应：' : '云端说：') + (j.msg || JSON.stringify(j)) +
+          (isCtrl ? '（网页已保留当前设置，等待设备上报）' : ''); }
+      if (done) done(false);
+    }
+  }catch(e){
+    if (tip){ tip.className = base + ' err';
+      tip.textContent = '✗ ' + e.message + (isCtrl ? '（网页已保留当前设置）' : ''); }
+    if (done) done(false);
+  }
+}
+function sendMsg(){
+  const v = $('msgIn').value.trim();
+  if (!v) return;
+  setProp({ msg: v });
+  $('msgIn').value = '';
+}
+function quickTest(){ setProp({ temp: 30 }); }
+
+tickClock();
+setInterval(tickClock, 1000);
+
+if ($('pid')) $('pid').value = cfg.pid;
+if ($('dev')) $('dev').value = cfg.dev;
+if ($('tok')) $('tok').value = cfg.tok;
+if ($('devTag')) $('devTag').textContent = cfg.dev;
+if ($('msgIn')) $('msgIn').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); sendMsg(); }
+});
+
+const cfgBox = $('cfgBox');
+if (cfgBox){
+  try {
+    const saved = localStorage.getItem('cfg_open_b');
+    if (saved === '0') cfgBox.open = false;
+    else if (saved === '1') cfgBox.open = true;
+    cfgBox.addEventListener('toggle', () => {
+      try { localStorage.setItem('cfg_open_b', cfgBox.open ? '1' : '0'); } catch(e){}
+    });
+  } catch(e){}
+}
+
+/* 设备控制 */
+const brightRange = $('brightRange');
+if (brightRange){
+  brightRange.addEventListener('input', () => {
+    if ($('brightVal')) $('brightVal').textContent = brightRange.value;
+  });
+  brightRange.addEventListener('change', () => {
+    markControl('Brightness');
+    setProp({ Brightness: Number(brightRange.value) }, 'ctrlTip', '明暗度');
+  });
+}
+const lightSwitch = $('lightSwitch');
+if (lightSwitch){
+  lightSwitch.addEventListener('change', () => {
+    const on = lightSwitch.checked;
+    markControl('LightSwitch');
+    if ($('switchState')) $('switchState').textContent = on ? '已开启·确认中' : '已关闭·确认中';
+    setProp({ LightSwitch: on }, 'ctrlTip', '主灯开关', ok => {
+      if ($('switchState')) $('switchState').textContent =
+        on ? (ok ? '已开启·待确认' : '已开启·未确认') : (ok ? '已关闭·待确认' : '已关闭·未确认');
+    });
+  });
+}
+const rgbPick = $('rgbPick');
+if (rgbPick){
+  const syncRgb = (send) => {
+    if ($('rgbSwatch')) $('rgbSwatch').style.background = rgbPick.value;
+    if ($('rgbHex')) $('rgbHex').textContent = rgbPick.value.toUpperCase();
+    if (send){
+      markControl('RGBColor');
+      setProp({ RGBColor: hexToRgb(rgbPick.value) }, 'ctrlTip', 'RGB 调色');
+    }
+  };
+  rgbPick.addEventListener('input', () => syncRgb(false));
+  rgbPick.addEventListener('change', () => syncRgb(true));
+}
+
+/* 背景主题 + 功能列表 */
+const THEMES = ['sky','dusk','night','sakura'];
+function applyTheme(theme){
+  if (!THEMES.includes(theme)) theme = 'sky';
+  document.body.classList.remove(...THEMES.map(t => 'theme-' + t));
+  document.body.classList.add('theme-' + theme);
+  try { localStorage.setItem('bg_theme', theme); } catch(e){}
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === theme);
+  });
+}
+function initMenu(){
+  const btn = $('menuBtn'), panel = $('featurePanel');
+  if (!btn || !panel) return;
+  const close = () => {
+    panel.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = panel.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  panel.addEventListener('click', e => e.stopPropagation());
+  const closeBtn = $('menuClose');
+  if (closeBtn) closeBtn.addEventListener('click', close);
+  document.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    b.addEventListener('click', () => applyTheme(b.dataset.theme));
+  });
+
+  const openCfg = $('openCfg');
+  if (openCfg) openCfg.addEventListener('click', () => {
+    if (cfgBox){
+      cfgBox.open = true;
+      try { localStorage.setItem('cfg_open_b', '1'); } catch(e){}
+      close();
+      cfgBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      cfgBox.classList.add('cfg-flash');
+      setTimeout(() => cfgBox.classList.remove('cfg-flash'), 1600);
+    }
+  });
+}
+let savedTheme = 'sky';
+try { savedTheme = localStorage.getItem('bg_theme') || 'sky'; } catch(e){}
+applyTheme(savedTheme);
+initMenu();
+
+const autoRefresh = $('autoRefresh');
+let pollTimer = null;
+function stopPolling(){ if (pollTimer){ clearInterval(pollTimer); pollTimer = null; } }
+function startPolling(){ stopPolling(); pollTimer = setInterval(fetchData, 2000); }
+if (autoRefresh){
+  try { autoRefresh.checked = localStorage.getItem('auto_refresh') !== '0'; } catch(e){}
+  autoRefresh.addEventListener('change', () => {
+    try { localStorage.setItem('auto_refresh', autoRefresh.checked ? '1' : '0'); } catch(e){}
+    if (autoRefresh.checked){
+      if ($('tip')){ $('tip').className = ''; $('tip').textContent = 'AOZORA SYNC · 每 2 秒刷新'; }
+      fetchData();
+      startPolling();
+    } else {
+      stopPolling();
+      if ($('tip')){ $('tip').className = ''; $('tip').textContent = '自动刷新已暂停 · 控制仍可下发'; }
+    }
+  });
+}
+fetchData();
+if (!autoRefresh || autoRefresh.checked) startPolling();
+window.addEventListener('resize', drawAll);
+
+let lastDraw = 0;
+function rafDraw(ts){
+  if (!document.hidden && ts - lastDraw > 33){ drawAll(); lastDraw = ts; }
+  requestAnimationFrame(rafDraw);
+}
+requestAnimationFrame(rafDraw);
+</script>
+</body>
+</html>

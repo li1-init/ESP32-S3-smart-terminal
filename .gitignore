@@ -1,0 +1,80 @@
+# ============================================================================
+#  ESP32-S3 Smart Terminal —— .gitignore
+#
+#  【上传】源码 main/ components/、配置 sdkconfig / sdkconfig.defaults /
+#          partitions.csv、网页 html/ web/、图片资源 image/、README、依赖锁
+#  【本地】编译产物 build/、组件管理器下载的 managed_components/、
+#          OTA 固件 ota_build/、个人笔记、各种 .bak/.orig 备份、
+#          编辑器本机配置、密钥
+# ============================================================================
+
+# ---------------- 1. 编译产物（idf.py build 生成，体积大且每次编译都变） ----------------
+build/
+build_*/
+build-*/
+cmake-build-*/
+*.bin
+*.elf
+*.map
+*.hex
+*.su
+*.o
+*.a
+*.d
+*.exe
+*.pdb
+sdkconfig.old
+sdkconfig.old.*
+flash_args
+flasher_args.json
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+
+# ---------------- 2. 组件管理器下载的第三方组件（reconfigure 会自动重新拉取） ----------------
+# 注意：dependencies.lock 必须上传，它锁定版本，保证别人构建出同样的固件
+managed_components/
+
+# ---------------- 3. OTA 升级包（2MB 级固件，不要塞进 git） ----------------
+# 需要发布固件时，用 GitHub Releases 上传，不要把 bin 提交进仓库
+ota_build/
+
+# ---------------- 4. 密钥 / 私密信息（绝对不能上传） ----------------
+# 模板 app_secrets.h.example 会上传，真实密钥放在 app_secrets.h（本地）
+main/app_secrets.h
+*.pem
+*.key
+.env
+.env.*
+secrets.*
+
+# ---------------- 5. 个人开发笔记（只留在本地，不上传） ----------------
+NOTES.md
+方案-5个功能.md
+
+# ---------------- 6. 编辑器 / IDE 的本机配置（路径写死了这台电脑，别人用不了） ----------------
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*~
+.cache/
+__pycache__/
+*.py[cod]
+
+# ---------------- 7. 备份 / 临时文件（源码改坏时留下的副本，不参与编译） ----------------
+*.bak
+*.bak[0-9]
+*.orig
+*.rej
+*.tmp
+*.log
+core
+*.stackdump
+
+# ---------------- 8. 操作系统垃圾文件 ----------------
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
